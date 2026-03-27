@@ -5,24 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>25-клеточные шахматы (PvP + ИИ)</title>
     <style>
+/* Базовая разметка страницы */
+
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    margin: 0;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-html, body {
-    max-width: 100%;
-    overflow-x: hidden;
-}
+/* Контейнер игры */
 
 .game-container {
     background: white;
-    padding: 30px;
+    padding: 20px 24px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     max-width: 520px;
@@ -30,12 +35,111 @@ html, body {
     box-sizing: border-box;
 }
 
+/* Заголовок */
+
 h1 {
     text-align: center;
     color: #333;
-    margin-bottom: 20px;
-    font-size: 26px;
+    margin: 0 0 10px 0;
+    font-size: 24px;
 }
+
+/* Информация о ходе и статусе */
+
+.info {
+    text-align: center;
+    margin: 6px 0 8px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.turn-indicator {
+    padding: 6px 8px;
+    background: #3498db;
+    color: white;
+    border-radius: 8px;
+    font-weight: bold;
+    margin: 0 auto 4px auto;
+    font-size: 15px;
+    max-width: 260px;
+}
+
+.status {
+    padding: 4px 8px;
+    background: #f4f4f4;
+    border-radius: 6px;
+    margin: 0 auto;
+    min-height: 18px;
+    font-size: 13px;
+    max-width: 320px;
+}
+
+.status.check {
+    background: #ffe8e8;
+    color: #c0392b;
+    font-weight: bold;
+    animation: pulse 1s infinite;
+}
+
+.status.checkmate {
+    background: #e74c3c;
+    color: white;
+    font-weight: bold;
+}
+
+.status.stalemate {
+    background: #e67e22;
+    color: white;
+    font-weight: bold;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Доска и координаты */
+
+.board-wrapper {
+    position: relative;
+    margin-top: 8px;
+}
+
+/* Буквы сразу над доской, без зазора */
+.coordinates {
+    display: flex;
+    justify-content: space-around;
+    margin: 0 auto;
+    font-weight: bold;
+    color: #555;
+    width: 100%;
+    max-width: 360px;
+    font-size: 14px;
+}
+
+/* Контейнер для цифр и самой доски */
+.board-row-wrapper {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    margin-top: 2px; /* минимальный зазор между буквами и доской */
+}
+
+/* Цифры слева от доски, не под ней */
+.rank-labels {
+    margin-right: 6px;
+}
+
+.rank {
+    height: 70px;
+    line-height: 70px;
+    font-weight: bold;
+    color: #555;
+    text-align: right;
+    font-size: 14px;
+}
+
+/* Шахматная доска */
 
 .board {
     display: grid;
@@ -43,7 +147,7 @@ h1 {
     grid-template-rows: repeat(5, 70px);
     gap: 0;
     border: 3px solid #333;
-    margin: 20px auto;
+    margin: 0 auto;
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
 
@@ -108,6 +212,8 @@ h1 {
     box-sizing: border-box;
 }
 
+/* Фигуры */
+
 .piece {
     font-family: Arial, sans-serif;
     font-size: 44px;
@@ -125,63 +231,17 @@ h1 {
     text-shadow: 1px 1px 2px rgba(255,255,255,0.7);
 }
 
-.info {
-    text-align: center;
-    margin: 20px 0 10px 0;
-    font-size: 18px;
-    color: #333;
-}
-
-.turn-indicator {
-    padding: 10px;
-    background: #3498db;
-    color: white;
-    border-radius: 8px;
-    font-weight: bold;
-    margin-bottom: 10px;
-}
-
-.status {
-    padding: 10px;
-    background: #f4f4f4;
-    border-radius: 8px;
-    margin: 10px 0;
-    min-height: 25px;
-}
-
-.status.check {
-    background: #ffe8e8;
-    color: #c0392b;
-    font-weight: bold;
-    animation: pulse 1s infinite;
-}
-
-.status.checkmate {
-    background: #e74c3c;
-    color: white;
-    font-weight: bold;
-}
-
-.status.stalemate {
-    background: #e67e22;
-    color: white;
-    font-weight: bold;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
+/* Кнопки под доской */
 
 button {
     display: block;
-    margin: 10px auto;
-    padding: 12px 25px;
+    margin: 0 auto;
+    padding: 10px 22px;
     background: #3498db;
     color: white;
     border: none;
     border-radius: 5px;
-    font-size: 16px;
+    font-size: 15px;
     cursor: pointer;
     transition: all 0.3s;
 }
@@ -192,98 +252,48 @@ button:hover {
     box-shadow: 0 5px 10px rgba(0,0,0,0.2);
 }
 
-.coordinates {
+.controls {
     display: flex;
-    justify-content: space-around;
-    width: 350px;
-    margin: 0 auto 5px;
-    font-weight: bold;
-    color: #555;
-}
-
-.rank-labels {
-    position: absolute;
-    left: -25px;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-.board-wrapper {
-    position: relative;
-}
-
-.rank {
-    height: 70px;
-    line-height: 70px;
-    font-weight: bold;
-    color: #555;
-}
-
-.game-over {
-    pointer-events: none;
-    opacity: 0.7;
-}
-
-.promotion-modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.7);
+    gap: 8px;
     justify-content: center;
-    align-items: center;
+    margin-top: 8px;   /* меньше расстояние от доски до кнопок */
 }
 
-.promotion-content {
-    background-color: white;
-    padding: 30px;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+.controls button {
+    margin: 0;
+    padding: 8px 16px;
+    font-size: 14px;
 }
 
-.promotion-content h3 {
-    margin-top: 0;
-    color: #333;
-}
+/* Взятые фигуры */
 
-.promotion-choices {
+.captured-pieces {
     display: flex;
-    gap: 20px;
-    justify-content: center;
-    margin-top: 20px;
-}
-
-.promotion-choice {
-    width: 100px;
-    height: 100px;
-    border: 3px solid #333;
-    border-radius: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 60px;
-    cursor: pointer;
-    background: #f0f0f0;
-    transition: all 0.3s;
-}
-
-.promotion-choice:hover {
-    background: #3498db;
-    color: white;
-    transform: scale(1.1);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-}
-
-.move-history {
-    margin-top: 15px;
-    padding: 10px;
+    justify-content: space-between;
+    margin: 12px 0 8px 0;
+    padding: 8px;
     background: #f8f9fa;
     border-radius: 8px;
-    font-size: 14px;
+}
+
+.captured-white, .captured-black {
+    font-size: 22px;
+}
+
+.captured-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 3px;
+}
+
+/* История ходов */
+
+.move-history {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 13px;
     color: #555;
     text-align: left;
     max-height: 100px;
@@ -294,64 +304,24 @@ button:hover {
     display: none;
 }
 
-.game-info {
-    font-size: 12px;
-    color: #777;
-    text-align: left;
-    margin-top: 15px;
-    padding: 10px;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-
-.controls {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    margin-top: 15px;
-}
-
-.controls button {
-    margin: 0;
-    padding: 10px 20px;
-    font-size: 14px;
-}
-
-.captured-pieces {
-    display: flex;
-    justify-content: space-between;
-    margin: 15px 0;
-    padding: 10px;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-
-.captured-white, .captured-black {
-    font-size: 24px;
-}
-
-.captured-label {
-    font-size: 12px;
-    color: #666;
-    margin-bottom: 5px;
-}
+/* Настройки и правила */
 
 .settings {
-    margin-top: 5px;
-    padding: 10px;
+    margin-top: 6px;
+    padding: 8px;
     background: #eef3ff;
     border-radius: 8px;
     font-size: 13px;
 }
 
 .settings h3 {
-    margin: 0 0 8px 0;
+    margin: 0 0 4px 0;
     font-size: 14px;
     color: #333;
 }
 
 .setting-row {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -371,56 +341,179 @@ button:hover {
 .settings-note {
     font-size: 11px;
     color: #777;
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
-/* --- АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ (портрет) --- */
+.game-info {
+    font-size: 12px;
+    color: #777;
+    text-align: left;
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* Модальное окно превращения */
+
+.promotion-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+}
+
+.promotion-content {
+    background-color: white;
+    padding: 24px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.promotion-content h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.promotion-choices {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.promotion-choice {
+    width: 90px;
+    height: 90px;
+    border: 3px solid #333;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 56px;
+    cursor: pointer;
+    background: #f0f0f0;
+    transition: all 0.3s;
+}
+
+.promotion-choice:hover {
+    background: #3498db;
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+/* Состояние "игра окончена" */
+
+.game-over {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* --- Адаптация для мобильных (портрет) --- */
 
 @media (max-width: 600px) {
     body {
         align-items: flex-start;
-        padding: 10px 0;
+        padding: 6px 0;
     }
 
     .game-container {
         border-radius: 0;
         max-width: 100%;
-        padding: 15px;
+        padding: 10px 8px 12px 8px;
         box-shadow: none;
     }
 
+    h1 {
+        font-size: 20px;
+        margin-bottom: 6px;
+    }
+
+    .turn-indicator {
+        font-size: 13px;
+        padding: 4px 6px;
+        max-width: 220px;
+    }
+
+    .status {
+        font-size: 12px;
+        padding: 3px 6px;
+        max-width: 260px;
+    }
+
     .board {
-        grid-template-columns: repeat(5, 54px);
-        grid-template-rows: repeat(5, 54px);
+        grid-template-columns: repeat(5, 50px);
+        grid-template-rows: repeat(5, 50px);
         border-width: 2px;
     }
 
     .square {
-        width: 54px;
-        height: 54px;
-        font-size: 36px;
+        width: 50px;
+        height: 50px;
+        font-size: 34px;
     }
 
     .rank {
-        height: 54px;
-        line-height: 54px;
+        height: 50px;
+        line-height: 50px;
+        font-size: 13px;
     }
 
     .coordinates {
-        width: auto;
-        padding: 0 20px;
+        font-size: 13px;
+        max-width: 280px;
+    }
+
+    .board-row-wrapper {
+        margin-top: 2px;
     }
 
     .rank-labels {
-        left: 5px;
+        margin-right: 4px;
     }
 
-    h1 {
-        font-size: 22px;
+    .controls {
+        margin-top: 6px;
+        gap: 6px;
     }
 
-    .info {
-        font-size: 16px;
+    .controls button {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+
+    .captured-pieces {
+        margin-top: 8px;
+        padding: 6px;
+    }
+
+    .captured-white, .captured-black {
+        font-size: 20px;
+    }
+
+    .move-history {
+        margin-top: 6px;
+        padding: 6px;
+        font-size: 12px;
+        max-height: 80px;
+    }
+
+    .settings {
+        padding: 6px;
+        margin-top: 6px;
+    }
+
+    .game-info {
+        padding: 6px;
+        margin-top: 6px;
     }
 }
     </style>
