@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>25-клеточные шахматы (PvP + ИИ)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .game-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 520px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 26px;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 70px);
+            grid-template-rows: repeat(5, 70px);
+            gap: 0;
+            border: 3px solid #333;
+            margin: 20px auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .square {
+            width: 70px;
+            height: 70px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 44px;
+            font-weight: bold;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.1s;
+        }
+        
+        .square:hover {
+            transform: scale(1.02);
+        }
+        
+        .square.white {
+            background: #f0d9b5;
+        }
+        
+        .square.black {
+            background: #b58863;
+        }
+        
+        .square.selected {
+            box-shadow: inset 0 0 0 4px #2ecc71;
+            background-color: rgba(46, 204, 113, 0.2) !important;
+        }
+        
+        .square.possible-move::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: rgba(46, 204, 113, 0.6);
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .square.possible-capture::after {
+            content: '';
+            position: absolute;
+            width: 62px;
+            height: 62px;
+            border: 4px solid rgba(231, 76, 60, 0.8);
+            border-radius: 50%;
+        }
+        
+        /* Оранжевое кольцо для взятия на проходе (пешкой или конём) */
+        .square.en-passant::before {
+            content: '';
+            position: absolute;
+            width: 62px;
+            height: 62px;
+            border: 4px solid rgba(230, 126, 34, 0.8);
+            border-radius: 50%;
+            border-style: dashed;
+            box-sizing: border-box;
+        }
+        
+        .piece {
+            font-family: Arial, sans-serif;
+            font-size: 44px;
+            font-weight: bold;
+            user-select: none;
+        }
+        
+        .piece.white-piece {
+            color: white;
+            text-shadow: 2px 2px 3px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;
+        }
+        
+        .piece.black-piece {
+            color: #2c3e50;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.7);
+        }
+        
+        .info {
+            text-align: center;
+            margin: 20px 0 10px 0;
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .turn-indicator {
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border-radius: 8px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            padding: 10px;
+            background: #f4f4f4;
+            border-radius: 8px;
+            margin: 10px 0;
+            min-height: 25px;
+        }
+        
+        .status.check {
+            background: #ffe8e8;
+            color: #c0392b;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+        
+        .status.checkmate {
+            background: #e74c3c;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .status.stalemate {
+            background: #e67e22;
+            color: white;
+            font-weight: bold;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        button {
+            display: block;
+            margin: 10px auto;
+            padding: 12px 25px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        }
+        
+        .coordinates {
+            display: flex;
+            justify-content: space-around;
+            width: 350px;
+            margin: 0 auto 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .rank-labels {
+            position: absolute;
+            left: -25px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .board-wrapper {
+            position: relative;
+        }
+        
+        .rank {
+            height: 70px;
+            line-height: 70px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .game-over {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        
+        .promotion-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .promotion-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .promotion-content h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .promotion-choices {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .promotion-choice {
+            width: 100px;
+            height: 100px;
+            border: 3px solid #333;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 60px;
+            cursor: pointer;
+            background: #f0f0f0;
+            transition: all 0.3s;
+        }
+        
+        .promotion-choice:hover {
+            background: #3498db;
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .move-history {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #555;
+            text-align: left;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .move-history:empty {
+            display: none;
+        }
+        
+        .game-info {
+            font-size: 12px;
+            color: #777;
+            text-align: left;
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .controls button {
+            margin: 0;
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        .captured-pieces {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .captured-white, .captured-black {
+            font-size: 24px;
+        }
+
+        .captured-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .settings {
+            margin-top: 5px;
+            padding: 10px;
+            background: #eef3ff;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .settings h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .setting-row {
+            margin-bottom: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+
+        .setting-row label {
+            font-size: 13px;
+            color: #444;
+        }
+
+        .settings select {
+            padding: 2px 4px;
+            font-size: 13px;
+        }
+
+        .settings-note {
+            font-size: 11px;
+            color: #777;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>♞ 25-клеточные шахматы ♞</h1>
+        
+        <div class="info">
+            <div id="turn" class="turn-indicator">Ход: БЕЛЫЕ</div>
+            <div id="status" class="status"></div>
+        </div>
+
+        <div class="captured-pieces">
+            <div>
+                <div class="captured-label">Взятые белые:</div>
+                <div id="captured-white" class="captured-white"></div>
+            </div>
+            <div>
+                <div class="captured-label">Взятые черные:</div>
+                <div id="captured-black" class="captured-black"></div>
+            </div>
+        </div>
+
+        <div class="settings">
+            <h3>Настройки партии</h3>
+            <div class="setting-row">
+                <label>
+                    <input type="checkbox" id="optKnightEnPassant">
+                    Взятие конём на проходе
+                </label>
+            </div>
+            <div class="setting-row">
+                <label for="optRepeatRule">Три повтора цикла ходов (туда-обратно):</label>
+                <select id="optRepeatRule">
+                    <option value="off">Отключено</option>
+                    <option value="draw">Ничья</option>
+                    <option value="loss">Инициатор цикла проигрывает</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>
+                    <input type="checkbox" id="optPerpetualCheck">
+                    Вечный шах (циклы с шахом) = ничья
+                </label>
+            </div>
+            <div class="settings-note">
+                Изменения вступают в силу только при начале новой игры.
+            </div>
+        </div>
+        
+        <div class="board-wrapper">
+            <div class="coordinates">
+                <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span>
+            </div>
+            
+            <div style="display: flex;">
+                <div class="rank-labels">
+                    <div class="rank">5</div>
+                    <div class="rank">4</div>
+                    <div class="rank">3</div>
+                    <div class="rank">2</div>
+                    <div class="rank">1</div>
+                </div>
+                <div class="board" id="board"></div>
+            </div>
+        </div>
+        
+        <div id="moveHistory" class="move-history"></div>
+        
+        <div class="controls">
+            <button onclick="resetGame()">🔄 Новая игра</button>
+            <button onclick="undoLastMove()">↩️ Отменить ход</button>
+            <button onclick="aiMove()">🤖 Ход ИИ</button>
+        </div>
+        
+        <div id="rules" class="game-info"></div>
+    </div>
+
+    <div id="promotionModal" class="promotion-modal">
+        <div class="promotion-content">
+            <h3>🎯 Превращение пешки</h3>
+            <p>Выберите фигуру:</p>
+            <div class="promotion-choices">
+                <div class="promotion-choice" onclick="selectPromotion('N')">
+                    <span style="font-weight: bold;">♞</span>
+                </div>
+            </div>
+            <p style="margin-top: 15px; color: #666;">Пешка превращается в коня</p>
+        </div>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 5;
+
+        // Новая расстановка: два коня вместо слона
+        // 1-я линия (белые): P N K N P   (по краям пешки, два коня, король в центре)
+        // 5-я линия (черные): p n k n p  (напротив)
+        const INITIAL_POSITION = [
+            ['P', 'N', 'K', 'N', 'P'],   // row 0 (1-я линия, белые)
+            [null, null, null, null, null],
+            [null, null, null, null, null],
+            [null, null, null, null, null],
+            ['p', 'n', 'k', 'n', 'p']    // row 4 (5-я линия, черные)
+        ];
+
+        const PIECE_SYMBOLS = {
+            'K': '♔', 'k': '♚',
+            'N': '♘', 'n': '♞',
+            'B': '♗', 'b': '♝',
+            'P': '♙', 'p': '♟',
+            'R': '♖', 'r': '♜'
+        };
+
+        const AI_MAX_DEPTH = 10;
+        const MATE_VALUE = 100000;
+
+        const REPEAT_RULE_OFF = 'off';
+        const REPEAT_RULE_DRAW = 'draw';
+        const REPEAT_RULE_LOSS = 'loss';
+
+        let board = [];
+        let currentTurn = 'white';
+        let selectedSquare = null;
+        let possibleMoves = [];
+        let moveHistory = [];
+        let moveNotation = [];
+        let capturedPieces = { white: [], black: [] };
+        let pawnMovedTwo = null; // {row, col}
+        let gameOver = false;
+        let promotionPending = null;
+        let aiThinking = false;
+
+        let gameOptions = {
+            knightEnPassant: false,
+            repeatRule: REPEAT_RULE_OFF,
+            perpetualCheckEnabled: false
+        };
+
+        function isUpperCase(char) {
+            return char === char.toUpperCase();
+        }
+
+        function isPlayerPiece(piece, player) {
+            if (!piece) return false;
+            if (player === 'white') {
+                return piece === 'K' || piece === 'B' || piece === 'N' || piece === 'P' || piece === 'R';
+            } else {
+                return piece === 'k' || piece === 'b' || piece === 'n' || piece === 'p' || piece === 'r';
+            }
+        }
+
+        function readOptionsFromUI() {
+            const knightCb = document.getElementById('optKnightEnPassant');
+            const repeatSel = document.getElementById('optRepeatRule');
+            const perpCb = document.getElementById('optPerpetualCheck');
+
+            gameOptions = {
+                knightEnPassant: knightCb ? knightCb.checked : false,
+                repeatRule: repeatSel ? repeatSel.value : REPEAT_RULE_OFF,
+                perpetualCheckEnabled: perpCb ? perpCb.checked : false
+            };
+        }
+
+        function updateRulesDisplay() {
+            const el = document.getElementById('rules');
+            if (!el) return;
+
+            let html = '<strong>Правила текущей партии:</strong><br>';
+            html += '• Доска 5×5: король, два коня и две пешки у каждой стороны.<br>';
+            html += '• 👑 Мат = победа (двойная по очкам).<br>';
+            html += '• 🎯 Пат = поражение стороны, которая не может ходить.<br>';
+            html += '• ♟ Пешки ходят и берут по классическим правилам (включая двойной ход и взятие на проходе).<br>';
+            html += '• Превращение пешки: только в коня (N).<br><br>';
+            html += '<strong>Дополнительные правила:</strong><br>';
+
+            if (gameOptions.knightEnPassant) {
+                html += '• Конь может брать пешку на проходе (после её двойного хода через битое поле коня).<br>';
+            } else {
+                html += '• Взятие конём на проходе: отключено.<br>';
+            }
+
+            html += '• Повторяющиеся циклы ходов одной фигуры (туда-обратно): ';
+            if (gameOptions.repeatRule === REPEAT_RULE_OFF) {
+                html += 'не учитываются.<br>';
+            } else if (gameOptions.repeatRule === REPEAT_RULE_DRAW) {
+                html += '3 одинаковых цикла → ничья (если в этих ходах нет шахов).<br>';
+            } else if (gameOptions.repeatRule === REPEAT_RULE_LOSS) {
+                html += '3 одинаковых цикла → поражение инициатора цикла (если в этих ходах нет шахов).<br>';
+            }
+
+            if (gameOptions.perpetualCheckEnabled) {
+                html += '• Вечный шах: если в трёх одинаковых циклах есть хотя бы один ход с шахом → ничья.<br>';
+            } else {
+                html += '• Вечный шах: отдельное правило отключено, цикл оценивается по общему правилу повторов.<br>';
+            }
+
+            html += '<br><em>Изменение настроек выше повлияет только на следующую новую игру.</em>';
+
+            el.innerHTML = html;
+        }
+
+        function initBoard() {
+            readOptionsFromUI();
+
+            board = INITIAL_POSITION.map(row => [...row]);
+            currentTurn = 'white';
+            selectedSquare = null;
+            possibleMoves = [];
+            moveHistory = [];
+            moveNotation = [];
+            capturedPieces = { white: [], black: [] };
+            pawnMovedTwo = null;
+            gameOver = false;
+            promotionPending = null;
+            aiThinking = false;
+
+            renderBoard();
+            updateStatus();
+            updateMoveHistory();
+            updateCapturedPieces();
+            updateRulesDisplay();
+        }
+
+        function renderBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+
+            if (gameOver) {
+                boardElement.classList.add('game-over');
+            } else {
+                boardElement.classList.remove('game-over');
+            }
+
+            for (let row = BOARD_SIZE - 1; row >= 0; row--) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const square = document.createElement('div');
+                    square.className = 'square';
+                    square.className += ((row + col) % 2 === 0) ? ' black' : ' white';
+
+                    const pieceCode = board[row][col];
+                    if (pieceCode) {
+                        const piece = document.createElement('span');
+                        piece.className = 'piece';
+                        piece.className += isUpperCase(pieceCode) ? ' white-piece' : ' black-piece';
+                        piece.textContent = PIECE_SYMBOLS[pieceCode] || pieceCode.toUpperCase();
+                        square.appendChild(piece);
+                    }
+
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    square.onclick = () => handleSquareClick(row, col);
+
+                    boardElement.appendChild(square);
+                }
+            }
+
+            highlightSelectedSquare();
+            highlightPossibleMoves();
+        }
+
+        function handleSquareClick(row, col) {
+            if (gameOver || aiThinking) return;
+
+            if (selectedSquare) {
+                const candidateMoves = possibleMoves.filter(m => m.row === row && m.col === col);
+                let move = null;
+
+                if (candidateMoves.length === 1) {
+                    move = candidateMoves[0];
+                } else if (candidateMoves.length > 1) {
+                    const enPassantMove = candidateMoves.find(m => m.enPassant);
+                    const normalMove = candidateMoves.find(m => !m.enPassant);
+
+                    if (enPassantMove && normalMove) {
+                        const side = currentTurn === 'white' ? 'белыми' : 'чёрными';
+                        const msg =
+                            `На это поле возможны два хода ${side}:\n` +
+                            `  OK — взять пешку на проходе;\n` +
+                            `  Отмена — обычный ход без взятия.`;
+                        move = confirm(msg) ? enPassantMove : normalMove;
+                    } else {
+                        move = candidateMoves[0];
+                    }
+                }
+
+                if (move) {
+                    const piece = board[selectedSquare.row][selectedSquare.col];
+
+                    const isWhitePawnPromotion = (piece === 'P' && row === BOARD_SIZE - 1);
+                    const isBlackPawnPromotion = (piece === 'p' && row === 0);
+
+                    if (isWhitePawnPromotion || isBlackPawnPromotion) {
+                        // Автоматическое превращение в коня (единственный вариант)
+                        attemptMoveWithRepeatWarning(
+                            selectedSquare.row,
+                            selectedSquare.col,
+                            row,
+                            col,
+                            'N',
+                            move.enPassant === true
+                        );
+                        clearSelection();
+                    } else {
+                        attemptMoveWithRepeatWarning(
+                            selectedSquare.row,
+                            selectedSquare.col,
+                            row,
+                            col,
+                            null,
+                            move.enPassant === true
+                        );
+                        clearSelection();
+                    }
+                } else {
+                    clearSelection();
+                    selectSquare(row, col);
+                }
+            } else {
+                selectSquare(row, col);
+            }
+        }
+
+        function selectSquare(row, col) {
+            const piece = board[row][col];
+            if (!piece) return;
+            if (!isPlayerPiece(piece, currentTurn)) return;
+
+            selectedSquare = { row, col };
+            possibleMoves = getPossibleMoves(row, col);
+
+            renderBoard();
+        }
+
+        function clearSelection() {
+            selectedSquare = null;
+            possibleMoves = [];
+            renderBoard();
+        }
+
+        function highlightSelectedSquare() {
+            if (!selectedSquare) return;
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(sq => {
+                const r = parseInt(sq.dataset.row, 10);
+                const c = parseInt(sq.dataset.col, 10);
+                if (r === selectedSquare.row && c === selectedSquare.col) {
+                    sq.classList.add('selected');
+                }
+            });
+        }
+
+        function highlightPossibleMoves() {
+            if (!possibleMoves || possibleMoves.length === 0) return;
+
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(sq => {
+                const r = parseInt(sq.dataset.row, 10);
+                const c = parseInt(sq.dataset.col, 10);
+
+                const movesHere = possibleMoves.filter(m => m.row === r && m.col === c);
+                if (movesHere.length === 0) return;
+
+                if (movesHere.some(m => m.enPassant)) {
+                    sq.classList.add('en-passant');
+                }
+
+                if (movesHere.some(m => !m.enPassant && !m.capture)) {
+                    sq.classList.add('possible-move');
+                }
+
+                if (movesHere.some(m => !m.enPassant && m.capture)) {
+                    sq.classList.add('possible-capture');
+                }
+            });
+        }
+
+        function getPossibleMoves(row, col) {
+            const piece = board[row][col];
+            if (!piece) return [];
+
+            let moves = [];
+
+            switch (piece.toUpperCase()) {
+                case 'K':
+                    moves = getKingMoves(row, col);
+                    break;
+                case 'N':
+                    moves = getKnightMoves(row, col);
+                    break;
+                case 'B':
+                    moves = getBishopMoves(row, col);
+                    break;
+                case 'R':
+                    moves = getRookMoves(row, col);
+                    break;
+                case 'P':
+                    moves = getPawnMoves(row, col);
+                    break;
+            }
+
+            return moves.filter(move => !wouldBeInCheck(
+                row,
+                col,
+                move.row,
+                move.col,
+                !!move.enPassant
+            ));
+        }
+
+        function getKingMoves(row, col) {
+            const moves = [];
+            const directions = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1],           [0, 1],
+                [1, -1],  [1, 0],  [1, 1]
+            ];
+
+            for (const [dr, dc] of directions) {
+                const newRow = row + dr;
+                const newCol = col + dc;
+
+                if (newRow >= 0 && newRow < BOARD_SIZE && newCol >= 0 && newCol < BOARD_SIZE) {
+                    const target = board[newRow][newCol];
+                    if (!target || !isPlayerPiece(target, currentTurn)) {
+                        moves.push({
+                            row: newRow,
+                            col: newCol,
+                            capture: target !== null
+                        });
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function getRookMoves(row, col) {
+            const moves = [];
+            const directions = [
+                [-1, 0], [1, 0],
+                [0, -1], [0, 1]
+            ];
+
+            for (const [dr, dc] of directions) {
+                for (let i = 1; i < BOARD_SIZE; i++) {
+                    const newRow = row + dr * i;
+                    const newCol = col + dc * i;
+
+                    if (newRow < 0 || newRow >= BOARD_SIZE || newCol < 0 || newCol >= BOARD_SIZE) break;
+
+                    const target = board[newRow][newCol];
+                    if (!target) {
+                        moves.push({
+                            row: newRow,
+                            col: newCol,
+                            capture: false
+                        });
+                    } else if (!isPlayerPiece(target, currentTurn)) {
+                        moves.push({
+                            row: newRow,
+                            col: newCol,
+                            capture: true
+                        });
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function getBishopMoves(row, col) {
+            const moves = [];
+            const directions = [
+                [-1, -1], [-1, 1],
+                [1, -1],  [1, 1]
+            ];
+
+            for (const [dr, dc] of directions) {
+                for (let i = 1; i < BOARD_SIZE; i++) {
+                    const newRow = row + dr * i;
+                    const newCol = col + dc * i;
+
+                    if (newRow < 0 || newRow >= BOARD_SIZE || newCol < 0 || newCol >= BOARD_SIZE) break;
+
+                    const target = board[newRow][newCol];
+                    if (!target) {
+                        moves.push({
+                            row: newRow,
+                            col: newCol,
+                            capture: false
+                        });
+                    } else if (!isPlayerPiece(target, currentTurn)) {
+                        moves.push({
+                            row: newRow,
+                            col: newCol,
+                            capture: true
+                        });
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function getKnightMoves(row, col) {
+            const moves = [];
+            const jumps = [
+                [-2, -1], [-2, 1],
+                [-1, -2], [-1, 2],
+                [1, -2],  [1, 2],
+                [2, -1],  [2, 1]
+            ];
+
+            // Обычные ходы коня
+            for (const [dr, dc] of jumps) {
+                const newRow = row + dr;
+                const newCol = col + dc;
+
+                if (newRow >= 0 && newRow < BOARD_SIZE && newCol >= 0 && newCol < BOARD_SIZE) {
+                    const target = board[newRow][newCol];
+                    if (!target || !isPlayerPiece(target, currentTurn)) {
+                        moves.push({
+                            row: newRow,
+                            col: newCol,
+                            capture: target !== null
+                        });
+                    }
+                }
+            }
+
+            // Взятие на проходе конём
+            if (gameOptions.knightEnPassant && pawnMovedTwo) {
+                const enemyPawn = board[pawnMovedTwo.row][pawnMovedTwo.col];
+                if (enemyPawn && enemyPawn.toUpperCase() === 'P') {
+                    const enemyIsWhite = isUpperCase(enemyPawn);
+                    const enemyPlayer = enemyIsWhite ? 'white' : 'black';
+                    const myPlayer = currentTurn;
+
+                    if (enemyPlayer !== myPlayer) {
+                        const enemyStartRow = enemyIsWhite ? 0 : BOARD_SIZE - 1;
+                        const midRow = (pawnMovedTwo.row + enemyStartRow) / 2;
+                        const midCol = pawnMovedTwo.col;
+
+                        if (
+                            midRow >= 0 && midRow < BOARD_SIZE &&
+                            board[midRow][midCol] === null
+                        ) {
+                            const dr = Math.abs(row - midRow);
+                            const dc = Math.abs(col - midCol);
+                            if ((dr === 2 && dc === 1) || (dr === 1 && dc === 2)) {
+                                moves.push({
+                                    row: midRow,
+                                    col: midCol,
+                                    capture: true,
+                                    enPassant: true
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function getPawnMoves(row, col) {
+            const moves = [];
+            const isWhite = isUpperCase(board[row][col]);
+            const direction = isWhite ? 1 : -1;
+            const startRow = isWhite ? 0 : BOARD_SIZE - 1;
+
+            // 1. Один шаг вперёд
+            const oneStep = row + direction;
+            if (oneStep >= 0 && oneStep < BOARD_SIZE && !board[oneStep][col]) {
+                moves.push({ row: oneStep, col: col, capture: false });
+
+                // 2. Двойной ход с начальной позиции
+                if (row === startRow) {
+                    const twoStep = row + 2 * direction;
+                    if (twoStep >= 0 && twoStep < BOARD_SIZE && !board[twoStep][col]) {
+                        moves.push({ row: twoStep, col: col, capture: false });
+                    }
+                }
+            }
+
+            // 3. Взятие по диагонали
+            for (const dc of [-1, 1]) {
+                const newRow = row + direction;
+                const newCol = col + dc;
+                if (newRow >= 0 && newRow < BOARD_SIZE && newCol >= 0 && newCol < BOARD_SIZE) {
+                    const target = board[newRow][newCol];
+                    if (target && !isPlayerPiece(target, currentTurn)) {
+                        moves.push({
+                            row: newRow,
+                            col: newCol,
+                            capture: true
+                        });
+                    }
+                }
+            }
+
+            // 4. Взятие на проходе пешкой
+            if (pawnMovedTwo) {
+                const enemyRow = pawnMovedTwo.row;
+                const enemyCol = pawnMovedTwo.col;
+                const enemyPawn = isWhite ? 'p' : 'P';
+
+                if (
+                    row === enemyRow &&
+                    Math.abs(col - enemyCol) === 1 &&
+                    board[enemyRow][enemyCol] === enemyPawn
+                ) {
+                    const targetRow = row + direction;
+                    if (targetRow >= 0 && targetRow < BOARD_SIZE && !board[targetRow][enemyCol]) {
+                        moves.push({
+                            row: targetRow,
+                            col: enemyCol,
+                            capture: true,
+                            enPassant: true
+                        });
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function wouldKingBeUnderAttack(kingRow, kingCol, player) {
+            const opponent = player === 'white' ? 'black' : 'white';
+
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const piece = board[row][col];
+                    if (!piece || !isPlayerPiece(piece, opponent)) continue;
+
+                    const type = piece.toUpperCase();
+
+                    if (type === 'K') {
+                        if (Math.abs(row - kingRow) <= 1 && Math.abs(col - kingCol) <= 1) {
+                            return true;
+                        }
+                    } else if (type === 'N') {
+                        const dr = Math.abs(row - kingRow);
+                        const dc = Math.abs(col - kingCol);
+                        if ((dr === 2 && dc === 1) || (dr === 1 && dc === 2)) {
+                            return true;
+                        }
+                    } else if (type === 'R') {
+                        if (row === kingRow || col === kingCol) {
+                            let blocked = false;
+                            if (row === kingRow) {
+                                const start = Math.min(col, kingCol) + 1;
+                                const end = Math.max(col, kingCol);
+                                for (let c = start; c < end; c++) {
+                                    if (board[row][c]) {
+                                        blocked = true;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                const start = Math.min(row, kingRow) + 1;
+                                const end = Math.max(row, kingRow);
+                                for (let r = start; r < end; r++) {
+                                    if (board[r][col]) {
+                                        blocked = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!blocked) return true;
+                        }
+                    } else if (type === 'B') {
+                        if (Math.abs(row - kingRow) === Math.abs(col - kingCol)) {
+                            let rStep = row < kingRow ? 1 : -1;
+                            let cStep = col < kingCol ? 1 : -1;
+                            let r = row + rStep;
+                            let c = col + cStep;
+                            let blocked = false;
+                            while (r !== kingRow && c !== kingCol) {
+                                if (board[r][c]) {
+                                    blocked = true;
+                                    break;
+                                }
+                                r += rStep;
+                                c += cStep;
+                            }
+                            if (!blocked) return true;
+                        }
+                    } else if (type === 'P') {
+                        const pawnDir = isUpperCase(piece) ? 1 : -1;
+                        if (row + pawnDir === kingRow && Math.abs(col - kingCol) === 1) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        function wouldBeInCheck(fromRow, fromCol, toRow, toCol, isEnPassant = false) {
+            const piece = board[fromRow][fromCol];
+            const captured = board[toRow][toCol];
+
+            let enPassantCapture = null;
+            let enPassantRow = null;
+            let enPassantCol = null;
+            if (isEnPassant) {
+                if (piece && piece.toUpperCase() === 'P') {
+                    enPassantRow = fromRow;
+                    enPassantCol = toCol;
+                    enPassantCapture = board[enPassantRow][enPassantCol];
+                    board[enPassantRow][enPassantCol] = null;
+                } else if (piece && piece.toUpperCase() === 'N' && pawnMovedTwo) {
+                    enPassantRow = pawnMovedTwo.row;
+                    enPassantCol = pawnMovedTwo.col;
+                    enPassantCapture = board[enPassantRow][enPassantCol];
+                    board[enPassantRow][enPassantCol] = null;
+                }
+            }
+
+            board[toRow][toCol] = piece;
+            board[fromRow][fromCol] = null;
+
+            let kingPos = null;
+            const kingPiece = currentTurn === 'white' ? 'K' : 'k';
+
+            if (piece === kingPiece) {
+                kingPos = { row: toRow, col: toCol };
+            } else {
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (board[r][c] === kingPiece) {
+                            kingPos = { row: r, col: c };
+                            break;
+                        }
+                    }
+                    if (kingPos) break;
+                }
+            }
+
+            const inCheck = kingPos
+                ? wouldKingBeUnderAttack(kingPos.row, kingPos.col, currentTurn)
+                : false;
+
+            board[fromRow][fromCol] = piece;
+            board[toRow][toCol] = captured;
+            if (isEnPassant && enPassantCapture) {
+                board[enPassantRow][enPassantCol] = enPassantCapture;
+            }
+
+            return inCheck;
+        }
+
+        function getMoveNotation(fromRow, fromCol, toRow, toCol, piece, capture) {
+            const files = ['a', 'b', 'c', 'd', 'e'];
+            const ranks = ['1', '2', '3', '4', '5'];
+
+            let notation = '';
+
+            if (piece.toUpperCase() === 'P') {
+                if (capture) {
+                    notation = files[fromCol];
+                }
+            } else {
+                notation = piece.toUpperCase();
+            }
+
+            if (capture) notation += 'x';
+            notation += files[toCol] + ranks[toRow];
+
+            return notation;
+        }
+
+        function attemptMoveWithRepeatWarning(fromRow, fromCol, toRow, toCol, promoteTo = null, isEnPassant = false) {
+            if (
+                gameOptions.repeatRule === REPEAT_RULE_OFF &&
+                !gameOptions.perpetualCheckEnabled
+            ) {
+                makeMove(fromRow, fromCol, toRow, toCol, promoteTo, isEnPassant);
+                return;
+            }
+
+            const testMove = {
+                fromRow,
+                fromCol,
+                toRow,
+                toCol,
+                enPassant: isEnPassant,
+                promoteTo: promoteTo
+            };
+
+            const backup = applySearchMove(testMove);
+            const repetition = getRepetitionOutcomeAfterLastMove();
+            undoSearchMove(backup);
+
+            if (repetition.type === 'loss') {
+                const side = currentTurn === 'white' ? 'Белые' : 'Черные';
+                const msg = side +
+                    ' завершат третий цикл одинаковых ходов и проиграют по правилу повторов.\n\nВыполнить ход всё равно?';
+                if (!confirm(msg)) {
+                    return;
+                }
+            }
+
+            makeMove(fromRow, fromCol, toRow, toCol, promoteTo, isEnPassant);
+        }
+
+        function makeMove(fromRow, fromCol, toRow, toCol, promoteTo = null, isEnPassant = false) {
+            const movingPlayer = currentTurn;
+            const opponent = (movingPlayer === 'white') ? 'black' : 'white';
+
+            const piece = board[fromRow][fromCol];
+            let captured = board[toRow][toCol];
+
+            // Взятие на проходе (пешкой или конём)
+            if (isEnPassant) {
+                if (piece.toUpperCase() === 'P') {
+                    const enemyRow = fromRow;
+                    const enemyCol = toCol;
+                    captured = board[enemyRow][enemyCol];
+                    board[enemyRow][enemyCol] = null;
+                } else if (piece.toUpperCase() === 'N' && pawnMovedTwo) {
+                    const enemyRow = pawnMovedTwo.row;
+                    const enemyCol = pawnMovedTwo.col;
+                    captured = board[enemyRow][enemyCol];
+                    board[enemyRow][enemyCol] = null;
+                }
+            }
+
+            const notation = getMoveNotation(
+                fromRow,
+                fromCol,
+                toRow,
+                toCol,
+                piece,
+                captured !== null
+            );
+
+            if (captured) {
+                if (isUpperCase(captured)) {
+                    capturedPieces.white.push(captured);
+                } else {
+                    capturedPieces.black.push(captured);
+                }
+            }
+
+            board[toRow][toCol] = piece;
+            board[fromRow][fromCol] = null;
+
+            let promotedPiece = null;
+            if ((piece === 'P' && toRow === BOARD_SIZE - 1) || (piece === 'p' && toRow === 0)) {
+                if (promoteTo) {
+                    promotedPiece = (piece === 'P') ? promoteTo : promoteTo.toLowerCase();
+                    board[toRow][toCol] = promotedPiece;
+                }
+            }
+
+            const oldPawnMovedTwo = pawnMovedTwo ? { ...pawnMovedTwo } : null;
+
+            const gaveCheck = isInCheck(opponent);
+
+            if (piece.toUpperCase() === 'P' && Math.abs(toRow - fromRow) === 2) {
+                pawnMovedTwo = { row: toRow, col: toCol };
+            } else {
+                pawnMovedTwo = null;
+            }
+
+            const notationFull = notation + (promotedPiece ? '=' + promotedPiece.toUpperCase() : '');
+
+            moveHistory.push({
+                from: { row: fromRow, col: fromCol },
+                to: { row: toRow, col: toCol },
+                piece: piece,
+                captured: captured,
+                promoted: promotedPiece,
+                enPassant: isEnPassant,
+                oldPawnMovedTwo: oldPawnMovedTwo,
+                notation: notationFull,
+                player: movingPlayer,
+                gaveCheck: gaveCheck
+            });
+
+            moveNotation.push(notationFull);
+
+            currentTurn = opponent;
+
+            renderBoard();
+            updateStatus();
+            updateMoveHistory();
+            updateCapturedPieces();
+
+            if (!gameOver) {
+                const repetition = getRepetitionOutcomeForPlayer(movingPlayer);
+                if (repetition.type !== 'none') {
+                    applyRepetitionResult(repetition, movingPlayer);
+                }
+            }
+        }
+
+        function undoLastMove() {
+            if (moveHistory.length === 0 || aiThinking) return;
+
+            const lastMove = moveHistory.pop();
+            moveNotation.pop();
+
+            board[lastMove.from.row][lastMove.from.col] = lastMove.piece;
+
+            if (!lastMove.enPassant) {
+                board[lastMove.to.row][lastMove.to.col] = lastMove.captured ? lastMove.captured : null;
+            } else {
+                board[lastMove.to.row][lastMove.to.col] = null;
+                if (lastMove.piece.toUpperCase() === 'P') {
+                    const enemyRow = lastMove.from.row;
+                    const enemyCol = lastMove.to.col;
+                    board[enemyRow][enemyCol] = lastMove.captured;
+                } else if (lastMove.piece.toUpperCase() === 'N' && lastMove.oldPawnMovedTwo) {
+                    board[lastMove.oldPawnMovedTwo.row][lastMove.oldPawnMovedTwo.col] = lastMove.captured;
+                }
+            }
+
+            if (lastMove.captured) {
+                if (isUpperCase(lastMove.captured)) {
+                    capturedPieces.white.pop();
+                } else {
+                    capturedPieces.black.pop();
+                }
+            }
+
+            pawnMovedTwo = lastMove.oldPawnMovedTwo ? { ...lastMove.oldPawnMovedTwo } : null;
+
+            currentTurn = (currentTurn === 'white') ? 'black' : 'white';
+
+            clearSelection();
+            gameOver = false;
+            renderBoard();
+            updateStatus();
+            updateMoveHistory();
+            updateCapturedPieces();
+        }
+
+        function showPromotionDialog() {
+            document.getElementById('promotionModal').style.display = 'flex';
+        }
+
+        function selectPromotion(pieceType) {
+            document.getElementById('promotionModal').style.display = 'none';
+            if (promotionPending) {
+                attemptMoveWithRepeatWarning(
+                    promotionPending.from.row,
+                    promotionPending.from.col,
+                    promotionPending.to.row,
+                    promotionPending.to.col,
+                    pieceType,
+                    promotionPending.move && promotionPending.move.enPassant === true
+                );
+                clearSelection();
+                promotionPending = null;
+            }
+        }
+
+        function isInCheck(player) {
+            let kingPos = null;
+            const kingPiece = (player === 'white') ? 'K' : 'k';
+
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (board[row][col] === kingPiece) {
+                        kingPos = { row, col };
+                        break;
+                    }
+                }
+                if (kingPos) break;
+            }
+
+            if (!kingPos) return false;
+            return wouldKingBeUnderAttack(kingPos.row, kingPos.col, player);
+        }
+
+        function hasLegalMoves(player) {
+            const oldTurn = currentTurn;
+            currentTurn = player;
+
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const piece = board[row][col];
+                    if (piece && isPlayerPiece(piece, player)) {
+                        const moves = getPossibleMoves(row, col);
+                        if (moves.length > 0) {
+                            currentTurn = oldTurn;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            currentTurn = oldTurn;
+            return false;
+        }
+
+        function updateStatus() {
+            const turnElement = document.getElementById('turn');
+            const statusElement = document.getElementById('status');
+
+            turnElement.textContent = `Ход: ${currentTurn === 'white' ? 'БЕЛЫЕ' : 'ЧЕРНЫЕ'}`;
+            turnElement.style.background = currentTurn === 'white' ? '#3498db' : '#2c3e50';
+
+            if (gameOver) {
+                return;
+            }
+
+            const inCheck = isInCheck(currentTurn);
+            const hasLegal = hasLegalMoves(currentTurn);
+
+            if (!hasLegal) {
+                gameOver = true;
+                if (inCheck) {
+                    statusElement.className = 'status checkmate';
+                    statusElement.textContent =
+                        `♔ МАТ! ${currentTurn === 'white' ? 'Черные' : 'Белые'} победили! (ДВОЙНАЯ ПОБЕДА!) ♔`;
+                } else {
+                    statusElement.className = 'status stalemate';
+                    statusElement.textContent =
+                        `⚠️ ПАТ! ${currentTurn === 'white' ? 'ЧЕРНЫЕ' : 'БЕЛЫЕ'} победили!`;
+                }
+                renderBoard();
+            } else if (inCheck) {
+                statusElement.className = 'status check';
+                statusElement.textContent = '⚠️ ШАХ!';
+            } else {
+                statusElement.className = 'status';
+                statusElement.textContent = '';
+            }
+        }
+
+        function updateMoveHistory() {
+            const historyEl = document.getElementById('moveHistory');
+            if (moveNotation.length === 0) {
+                historyEl.innerHTML = '';
+                return;
+            }
+
+            let historyHTML = '<strong>История ходов:</strong><br>';
+            for (let i = 0; i < moveNotation.length; i++) {
+                if (i % 2 === 0) {
+                    historyHTML += `${Math.floor(i / 2) + 1}. `;
+                }
+                historyHTML += moveNotation[i] + ' ';
+                if (i % 2 === 1) {
+                    historyHTML += '<br>';
+                }
+            }
+            historyEl.innerHTML = historyHTML;
+        }
+
+        function updateCapturedPieces() {
+            const whiteEl = document.getElementById('captured-white');
+            const blackEl = document.getElementById('captured-black');
+
+            whiteEl.innerHTML = capturedPieces.white
+                .map(p => PIECE_SYMBOLS[p] || p)
+                .join(' ');
+            blackEl.innerHTML = capturedPieces.black
+                .map(p => PIECE_SYMBOLS[p] || p)
+                .join(' ');
+        }
+
+        function resetGame() {
+            if (aiThinking) return;
+            if (confirm('Начать новую игру с текущими настройками?')) {
+                initBoard();
+            }
+        }
+
+        // ---------- ЛОГИКА ПОВТОРОВ / ВЕЧНОГО ШАХА ----------
+
+        function squaresEqual(a, b) {
+            return a.row === b.row && a.col === b.col;
+        }
+
+        function getRepetitionOutcomeForPlayer(player) {
+            if (
+                gameOptions.repeatRule === REPEAT_RULE_OFF &&
+                !gameOptions.perpetualCheckEnabled
+            ) {
+                return { type: 'none' };
+            }
+
+            const playerMoves = moveHistory.filter(m => m.player === player);
+            if (playerMoves.length < 6) {
+                return { type: 'none' };
+            }
+
+            const lastSix = playerMoves.slice(-6);
+            const first = lastSix[0];
+            const fromA = first.from;
+            const toB = first.to;
+            const pieceCode = first.piece;
+
+            for (let i = 0; i < 3; i++) {
+                const forward = lastSix[2 * i];
+                const back = lastSix[2 * i + 1];
+
+                if (forward.piece !== pieceCode || back.piece !== pieceCode) {
+                    return { type: 'none' };
+                }
+
+                if (!squaresEqual(forward.from, fromA) || !squaresEqual(forward.to, toB)) {
+                    return { type: 'none' };
+                }
+
+                if (!squaresEqual(back.from, toB) || !squaresEqual(back.to, fromA)) {
+                    return { type: 'none' };
+                }
+            }
+
+            const hasCheck = lastSix.some(m => m.gaveCheck);
+
+            if (hasCheck && gameOptions.perpetualCheckEnabled) {
+                return { type: 'draw', reason: 'perpetual' };
+            }
+
+            if (gameOptions.repeatRule === REPEAT_RULE_DRAW) {
+                return { type: 'draw', reason: 'repetition' };
+            }
+
+            if (gameOptions.repeatRule === REPEAT_RULE_LOSS) {
+                return { type: 'loss', reason: 'repetition' };
+            }
+
+            return { type: 'none' };
+        }
+
+        function getRepetitionOutcomeAfterLastMove() {
+            if (moveHistory.length === 0) return { type: 'none' };
+            const lastPlayer = moveHistory[moveHistory.length - 1].player;
+            return getRepetitionOutcomeForPlayer(lastPlayer);
+        }
+
+        function applyRepetitionResult(result, movingPlayer) {
+            const statusElement = document.getElementById('status');
+            gameOver = true;
+
+            if (result.type === 'loss') {
+                const loser = movingPlayer === 'white' ? 'БЕЛЫЕ' : 'ЧЕРНЫЕ';
+                const winner = movingPlayer === 'white' ? 'Черные' : 'Белые';
+                statusElement.className = 'status checkmate';
+                statusElement.textContent =
+                    `♻ Повтор ходов! ${loser} проиграли за 3 одинаковых цикла. Победили ${winner}.`;
+            } else if (result.type === 'draw') {
+                statusElement.className = 'status stalemate';
+                if (result.reason === 'perpetual') {
+                    statusElement.textContent = '♻ Вечный шах. Ничья.';
+                } else {
+                    statusElement.textContent = '♻ Три одинаковых цикла ходов. Ничья.';
+                }
+            }
+
+            renderBoard();
+        }
+
+        // ---------- Блок ИИ ----------
+
+        function generateAllLegalMovesForCurrentPlayer() {
+            const player = currentTurn;
+            const moves = [];
+
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const piece = board[row][col];
+                    if (!piece || !isPlayerPiece(piece, player)) continue;
+
+                    const basicMoves = getPossibleMoves(row, col);
+                    for (const m of basicMoves) {
+                        const isPawn = piece.toUpperCase() === 'P';
+                        const isPromotion =
+                            (piece === 'P' && m.row === BOARD_SIZE - 1) ||
+                            (piece === 'p' && m.row === 0);
+
+                        const baseMove = {
+                            fromRow: row,
+                            fromCol: col,
+                            toRow: m.row,
+                            toCol: m.col,
+                            enPassant: !!m.enPassant,
+                            capture: !!m.capture || !!m.enPassant,
+                            promoteTo: null
+                        };
+
+                        if (isPawn && isPromotion) {
+                            // Только конь доступен для превращения
+                            moves.push({ ...baseMove, promoteTo: 'N' });
+                        } else {
+                            moves.push(baseMove);
+                        }
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function evaluateBoard() {
+            const pieceValues = {
+                'P': 100,
+                'N': 300,
+                'B': 300,
+                'R': 500,
+                'K': 10000
+            };
+
+            let score = 0;
+
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const piece = board[row][col];
+                    if (!piece) continue;
+
+                    const type = piece.toUpperCase();
+                    let val = pieceValues[type] || 0;
+
+                    // Бонус за продвижение пешек
+                    if (type === 'P') {
+                        if (piece === 'P') {
+                            val += row * 10;
+                        } else {
+                            val += (BOARD_SIZE - 1 - row) * 10;
+                        }
+                    }
+
+                    // Центр: c3 (2,2)
+                    if (row === 2 && col === 2) {
+                        if (type === 'N' || type === 'B' || type === 'R' || type === 'K') {
+                            val += 10;
+                        }
+                    }
+
+                    if (isUpperCase(piece)) {
+                        score += val;
+                    } else {
+                        score -= val;
+                    }
+                }
+            }
+
+            return score;
+        }
+
+        function applySearchMove(move) {
+            const backup = {
+                board: board.map(row => row.slice()),
+                pawnMovedTwo: pawnMovedTwo ? { ...pawnMovedTwo } : null,
+                currentTurn: currentTurn,
+                moveHistory: moveHistory.slice()
+            };
+
+            const movingPlayer = currentTurn;
+            const opponent = (movingPlayer === 'white') ? 'black' : 'white';
+
+            const piece = board[move.fromRow][move.fromCol];
+
+            let captured = board[move.toRow][move.toCol];
+
+            if (move.enPassant) {
+                if (piece.toUpperCase() === 'P') {
+                    const enemyRow = move.fromRow;
+                    const enemyCol = move.toCol;
+                    captured = board[enemyRow][enemyCol];
+                    board[enemyRow][enemyCol] = null;
+                } else if (piece.toUpperCase() === 'N' && pawnMovedTwo) {
+                    const enemyRow = pawnMovedTwo.row;
+                    const enemyCol = pawnMovedTwo.col;
+                    captured = board[enemyRow][enemyCol];
+                    board[enemyRow][enemyCol] = null;
+                }
+            }
+
+            board[move.toRow][move.toCol] = piece;
+            board[move.fromRow][move.fromCol] = null;
+
+            let promotedPiece = null;
+            if (move.promoteTo && piece.toUpperCase() === 'P') {
+                promotedPiece =
+                    (piece === 'P') ? move.promoteTo : move.promoteTo.toLowerCase();
+                board[move.toRow][move.toCol] = promotedPiece;
+            }
+
+            const gaveCheck = isInCheck(opponent);
+
+            if (piece.toUpperCase() === 'P' &&
+                Math.abs(move.toRow - move.fromRow) === 2) {
+                pawnMovedTwo = { row: move.toRow, col: move.toCol };
+            } else {
+                pawnMovedTwo = null;
+            }
+
+            moveHistory.push({
+                from: { row: move.fromRow, col: move.fromCol },
+                to: { row: move.toRow, col: move.toCol },
+                piece: piece,
+                captured: captured,
+                promoted: promotedPiece,
+                enPassant: !!move.enPassant,
+                oldPawnMovedTwo: backup.pawnMovedTwo,
+                notation: '',
+                player: movingPlayer,
+                gaveCheck: gaveCheck
+            });
+
+            currentTurn = opponent;
+
+            return backup;
+        }
+
+        function undoSearchMove(backup) {
+            board = backup.board;
+            pawnMovedTwo = backup.pawnMovedTwo;
+            currentTurn = backup.currentTurn;
+            moveHistory = backup.moveHistory;
+        }
+
+        function negamax(depth, alpha, beta, color) {
+            const playerColor = currentTurn;
+            const moves = generateAllLegalMovesForCurrentPlayer();
+
+            if (depth === 0 || moves.length === 0) {
+                if (moves.length === 0) {
+                    return -MATE_VALUE;
+                }
+                const evalScore = evaluateBoard();
+                return color * evalScore;
+            }
+
+            moves.sort((a, b) => {
+                if (a.capture !== b.capture) {
+                    return (b.capture ? 1 : 0) - (a.capture ? 1 : 0);
+                }
+                if (!!a.promoteTo !== !!b.promoteTo) {
+                    return (b.promoteTo ? 1 : 0) - (a.promoteTo ? 1 : 0);
+                }
+                return 0;
+            });
+
+            let bestVal = -Infinity;
+
+            for (const move of moves) {
+                const backup = applySearchMove(move);
+
+                const repetition = getRepetitionOutcomeAfterLastMove();
+                let val;
+                if (repetition.type === 'loss') {
+                    val = -MATE_VALUE;
+                } else if (repetition.type === 'draw') {
+                    val = 0;
+                } else {
+                    val = -negamax(depth - 1, -beta, -alpha, -color);
+                }
+
+                undoSearchMove(backup);
+
+                if (val > bestVal) bestVal = val;
+                if (bestVal > alpha) alpha = bestVal;
+                if (alpha >= beta) break;
+            }
+
+            return bestVal;
+        }
+
+        function findBestMove(maxDepth) {
+            const playerColor = currentTurn;
+            const color = (playerColor === 'white') ? 1 : -1;
+            const moves = generateAllLegalMovesForCurrentPlayer();
+
+            if (moves.length === 0) return null;
+
+            moves.sort((a, b) => {
+                if (a.capture !== b.capture) {
+                    return (b.capture ? 1 : 0) - (a.capture ? 1 : 0);
+                }
+                if (!!a.promoteTo !== !!b.promoteTo) {
+                    return (b.promoteTo ? 1 : 0) - (a.promoteTo ? 1 : 0);
+                }
+                return 0;
+            });
+
+            let bestMove = null;
+            let bestValue = -Infinity;
+
+            for (const move of moves) {
+                const backup = applySearchMove(move);
+
+                const repetition = getRepetitionOutcomeAfterLastMove();
+                let val;
+                if (repetition.type === 'loss') {
+                    val = -MATE_VALUE;
+                } else if (repetition.type === 'draw') {
+                    val = 0;
+                } else {
+                    val = -negamax(maxDepth - 1, -Infinity, Infinity, -color);
+                }
+
+                undoSearchMove(backup);
+
+                if (val > bestValue) {
+                    bestValue = val;
+                    bestMove = move;
+                }
+            }
+
+            return bestMove;
+        }
+
+        function aiMove() {
+            if (gameOver || aiThinking) return;
+
+            aiThinking = true;
+
+            setTimeout(() => {
+                const bestMove = findBestMove(AI_MAX_DEPTH);
+                aiThinking = false;
+
+                if (!bestMove) {
+                    return;
+                }
+
+                makeMove(
+                    bestMove.fromRow,
+                    bestMove.fromCol,
+                    bestMove.toRow,
+                    bestMove.toCol,
+                    bestMove.promoteTo,
+                    !!bestMove.enPassant
+                );
+                clearSelection();
+            }, 10);
+        }
+
+        // Инициализация игры
+        initBoard();
+    </script>
+</body>
+</html>
