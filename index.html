@@ -5,367 +5,424 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>25-клеточные шахматы (PvP + ИИ)</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .game-container {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            max-width: 520px;
-        }
-        
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 26px;
-        }
-        
-        .board {
-            display: grid;
-            grid-template-columns: repeat(5, 70px);
-            grid-template-rows: repeat(5, 70px);
-            gap: 0;
-            border: 3px solid #333;
-            margin: 20px auto;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .square {
-            width: 70px;
-            height: 70px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 44px;
-            font-weight: bold;
-            cursor: pointer;
-            position: relative;
-            transition: transform 0.1s;
-        }
-        
-        .square:hover {
-            transform: scale(1.02);
-        }
-        
-        .square.white {
-            background: #f0d9b5;
-        }
-        
-        .square.black {
-            background: #b58863;
-        }
-        
-        .square.selected {
-            box-shadow: inset 0 0 0 4px #2ecc71;
-            background-color: rgba(46, 204, 113, 0.2) !important;
-        }
-        
-        .square.possible-move::after {
-            content: '';
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            background: rgba(46, 204, 113, 0.6);
-            border-radius: 50%;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        
-        .square.possible-capture::after {
-            content: '';
-            position: absolute;
-            width: 62px;
-            height: 62px;
-            border: 4px solid rgba(231, 76, 60, 0.8);
-            border-radius: 50%;
-        }
-        
-        /* Оранжевое кольцо для взятия на проходе (пешкой или конём) */
-        .square.en-passant::before {
-            content: '';
-            position: absolute;
-            width: 62px;
-            height: 62px;
-            border: 4px solid rgba(230, 126, 34, 0.8);
-            border-radius: 50%;
-            border-style: dashed;
-            box-sizing: border-box;
-        }
-        
-        .piece {
-            font-family: Arial, sans-serif;
-            font-size: 44px;
-            font-weight: bold;
-            user-select: none;
-        }
-        
-        .piece.white-piece {
-            color: white;
-            text-shadow: 2px 2px 3px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;
-        }
-        
-        .piece.black-piece {
-            color: #2c3e50;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.7);
-        }
-        
-        .info {
-            text-align: center;
-            margin: 20px 0 10px 0;
-            font-size: 18px;
-            color: #333;
-        }
-        
-        .turn-indicator {
-            padding: 10px;
-            background: #3498db;
-            color: white;
-            border-radius: 8px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        
-        .status {
-            padding: 10px;
-            background: #f4f4f4;
-            border-radius: 8px;
-            margin: 10px 0;
-            min-height: 25px;
-        }
-        
-        .status.check {
-            background: #ffe8e8;
-            color: #c0392b;
-            font-weight: bold;
-            animation: pulse 1s infinite;
-        }
-        
-        .status.checkmate {
-            background: #e74c3c;
-            color: white;
-            font-weight: bold;
-        }
-        
-        .status.stalemate {
-            background: #e67e22;
-            color: white;
-            font-weight: bold;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        
-        button {
-            display: block;
-            margin: 10px auto;
-            padding: 12px 25px;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        button:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
-        }
-        
-        .coordinates {
-            display: flex;
-            justify-content: space-around;
-            width: 350px;
-            margin: 0 auto 5px;
-            font-weight: bold;
-            color: #555;
-        }
-        
-        .rank-labels {
-            position: absolute;
-            left: -25px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-        
-        .board-wrapper {
-            position: relative;
-        }
-        
-        .rank {
-            height: 70px;
-            line-height: 70px;
-            font-weight: bold;
-            color: #555;
-        }
-        
-        .game-over {
-            pointer-events: none;
-            opacity: 0.7;
-        }
-        
-        .promotion-modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.7);
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .promotion-content {
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-        
-        .promotion-content h3 {
-            margin-top: 0;
-            color: #333;
-        }
-        
-        .promotion-choices {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        
-        .promotion-choice {
-            width: 100px;
-            height: 100px;
-            border: 3px solid #333;
-            border-radius: 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 60px;
-            cursor: pointer;
-            background: #f0f0f0;
-            transition: all 0.3s;
-        }
-        
-        .promotion-choice:hover {
-            background: #3498db;
-            color: white;
-            transform: scale(1.1);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
 
-        .move-history {
-            margin-top: 15px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            font-size: 14px;
-            color: #555;
-            text-align: left;
-            max-height: 100px;
-            overflow-y: auto;
-        }
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
 
-        .move-history:empty {
-            display: none;
-        }
-        
-        .game-info {
-            font-size: 12px;
-            color: #777;
-            text-align: left;
-            margin-top: 15px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
+.game-container {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    max-width: 520px;
+    width: 100%;
+    box-sizing: border-box;
+}
 
-        .controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 15px;
-        }
+h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 26px;
+}
 
-        .controls button {
-            margin: 0;
-            padding: 10px 20px;
-            font-size: 14px;
-        }
+.board {
+    display: grid;
+    grid-template-columns: repeat(5, 70px);
+    grid-template-rows: repeat(5, 70px);
+    gap: 0;
+    border: 3px solid #333;
+    margin: 20px auto;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
 
-        .captured-pieces {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
+.square {
+    width: 70px;
+    height: 70px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 44px;
+    font-weight: bold;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.1s;
+}
 
-        .captured-white, .captured-black {
-            font-size: 24px;
-        }
+.square:hover {
+    transform: scale(1.02);
+}
 
-        .captured-label {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 5px;
-        }
+.square.white {
+    background: #f0d9b5;
+}
 
-        .settings {
-            margin-top: 5px;
-            padding: 10px;
-            background: #eef3ff;
-            border-radius: 8px;
-            font-size: 13px;
-        }
+.square.black {
+    background: #b58863;
+}
 
-        .settings h3 {
-            margin: 0 0 8px 0;
-            font-size: 14px;
-            color: #333;
-        }
+.square.selected {
+    box-shadow: inset 0 0 0 4px #2ecc71;
+    background-color: rgba(46, 204, 113, 0.2) !important;
+}
 
-        .setting-row {
-            margin-bottom: 6px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 2px;
-        }
+.square.possible-move::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: rgba(46, 204, 113, 0.6);
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
 
-        .setting-row label {
-            font-size: 13px;
-            color: #444;
-        }
+.square.possible-capture::after {
+    content: '';
+    position: absolute;
+    width: 62px;
+    height: 62px;
+    border: 4px solid rgba(231, 76, 60, 0.8);
+    border-radius: 50%;
+}
 
-        .settings select {
-            padding: 2px 4px;
-            font-size: 13px;
-        }
+/* Оранжевое кольцо для взятия на проходе (пешкой или конём) */
+.square.en-passant::before {
+    content: '';
+    position: absolute;
+    width: 62px;
+    height: 62px;
+    border: 4px solid rgba(230, 126, 34, 0.8);
+    border-radius: 50%;
+    border-style: dashed;
+    box-sizing: border-box;
+}
 
-        .settings-note {
-            font-size: 11px;
-            color: #777;
-            margin-top: 4px;
-        }
+.piece {
+    font-family: Arial, sans-serif;
+    font-size: 44px;
+    font-weight: bold;
+    user-select: none;
+}
+
+.piece.white-piece {
+    color: white;
+    text-shadow: 2px 2px 3px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;
+}
+
+.piece.black-piece {
+    color: #2c3e50;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.7);
+}
+
+.info {
+    text-align: center;
+    margin: 20px 0 10px 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.turn-indicator {
+    padding: 10px;
+    background: #3498db;
+    color: white;
+    border-radius: 8px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.status {
+    padding: 10px;
+    background: #f4f4f4;
+    border-radius: 8px;
+    margin: 10px 0;
+    min-height: 25px;
+}
+
+.status.check {
+    background: #ffe8e8;
+    color: #c0392b;
+    font-weight: bold;
+    animation: pulse 1s infinite;
+}
+
+.status.checkmate {
+    background: #e74c3c;
+    color: white;
+    font-weight: bold;
+}
+
+.status.stalemate {
+    background: #e67e22;
+    color: white;
+    font-weight: bold;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+button {
+    display: block;
+    margin: 10px auto;
+    padding: 12px 25px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+button:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+}
+
+.coordinates {
+    display: flex;
+    justify-content: space-around;
+    width: 350px;
+    margin: 0 auto 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.rank-labels {
+    position: absolute;
+    left: -25px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.board-wrapper {
+    position: relative;
+}
+
+.rank {
+    height: 70px;
+    line-height: 70px;
+    font-weight: bold;
+    color: #555;
+}
+
+.game-over {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.promotion-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+}
+
+.promotion-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.promotion-content h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.promotion-choices {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.promotion-choice {
+    width: 100px;
+    height: 100px;
+    border: 3px solid #333;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 60px;
+    cursor: pointer;
+    background: #f0f0f0;
+    transition: all 0.3s;
+}
+
+.promotion-choice:hover {
+    background: #3498db;
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.move-history {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #555;
+    text-align: left;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.move-history:empty {
+    display: none;
+}
+
+.game-info {
+    font-size: 12px;
+    color: #777;
+    text-align: left;
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+.controls button {
+    margin: 0;
+    padding: 10px 20px;
+    font-size: 14px;
+}
+
+.captured-pieces {
+    display: flex;
+    justify-content: space-between;
+    margin: 15px 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.captured-white, .captured-black {
+    font-size: 24px;
+}
+
+.captured-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.settings {
+    margin-top: 5px;
+    padding: 10px;
+    background: #eef3ff;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.settings h3 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #333;
+}
+
+.setting-row {
+    margin-bottom: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.setting-row label {
+    font-size: 13px;
+    color: #444;
+}
+
+.settings select {
+    padding: 2px 4px;
+    font-size: 13px;
+}
+
+.settings-note {
+    font-size: 11px;
+    color: #777;
+    margin-top: 4px;
+}
+
+/* --- АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ (портрет) --- */
+
+@media (max-width: 600px) {
+    body {
+        align-items: flex-start;
+        padding: 10px 0;
+    }
+
+    .game-container {
+        border-radius: 0;
+        max-width: 100%;
+        padding: 15px;
+        box-shadow: none;
+    }
+
+    .board {
+        grid-template-columns: repeat(5, 54px);
+        grid-template-rows: repeat(5, 54px);
+        border-width: 2px;
+    }
+
+    .square {
+        width: 54px;
+        height: 54px;
+        font-size: 36px;
+    }
+
+    .rank {
+        height: 54px;
+        line-height: 54px;
+    }
+
+    .coordinates {
+        width: auto;
+        padding: 0 20px;
+    }
+
+    .rank-labels {
+        left: 5px;
+    }
+
+    h1 {
+        font-size: 22px;
+    }
+
+    .info {
+        font-size: 16px;
+    }
+}
     </style>
 </head>
 <body>
@@ -375,6 +432,30 @@
         <div class="info">
             <div id="turn" class="turn-indicator">Ход: БЕЛЫЕ</div>
             <div id="status" class="status"></div>
+        </div>
+        
+        <div class="board-wrapper">
+            <div class="coordinates">
+                <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span>
+            </div>
+            
+            <div style="display: flex;">
+                <div class="rank-labels">
+                    <div class="rank">5</div>
+                    <div class="rank">4</div>
+                    <div class="rank">3</div>
+                    <div class="rank">2</div>
+                    <div class="rank">1</div>
+                </div>
+                <div class="board" id="board"></div>
+            </div>
+        </div>
+        
+        
+        <div class="controls">
+            <button onclick="resetGame()">🔄 Новая игра</button>
+            <button onclick="undoLastMove()">↩️ Отменить ход</button>
+            <button onclick="aiMove()">🤖 Ход ИИ</button>
         </div>
 
         <div class="captured-pieces">
@@ -387,6 +468,8 @@
                 <div id="captured-black" class="captured-black"></div>
             </div>
         </div>
+
+        <div id="moveHistory" class="move-history"></div>
 
         <div class="settings">
             <h3>Настройки партии</h3>
@@ -414,31 +497,8 @@
                 Изменения вступают в силу только при начале новой игры.
             </div>
         </div>
-        
-        <div class="board-wrapper">
-            <div class="coordinates">
-                <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span>
-            </div>
-            
-            <div style="display: flex;">
-                <div class="rank-labels">
-                    <div class="rank">5</div>
-                    <div class="rank">4</div>
-                    <div class="rank">3</div>
-                    <div class="rank">2</div>
-                    <div class="rank">1</div>
-                </div>
-                <div class="board" id="board"></div>
-            </div>
-        </div>
-        
-        <div id="moveHistory" class="move-history"></div>
-        
-        <div class="controls">
-            <button onclick="resetGame()">🔄 Новая игра</button>
-            <button onclick="undoLastMove()">↩️ Отменить ход</button>
-            <button onclick="aiMove()">🤖 Ход ИИ</button>
-        </div>
+
+
         
         <div id="rules" class="game-info"></div>
     </div>
@@ -478,7 +538,7 @@
             'R': '♖', 'r': '♜'
         };
 
-        const AI_MAX_DEPTH = 10;
+        const AI_MAX_DEPTH = 7;
         const MATE_VALUE = 100000;
 
         const REPEAT_RULE_OFF = 'off';
